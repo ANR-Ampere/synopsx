@@ -190,10 +190,14 @@ declare function hi($node as element(tei:hi)+, $options) {
 };
 
 declare function lb($node as element(tei:lb), $options) {
-  let $lb := map:get($options, 'lb')
+  (: let $lb := map:get($options, 'lb')
   return switch($node)
     case ($node[@rend='hyphen'] and $lb) return ('-', <br/>)
     case ($node and $lb) return <br/>
+    default return () :)
+    switch($node)
+    case ($node[@rend='hyphen']) return ('-', <br/>)
+    case ($node) return <br/>
     default return ()
 };
 
