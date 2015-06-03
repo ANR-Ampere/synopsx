@@ -31,14 +31,14 @@ declare default function namespace 'synopsx.mappings.tei2html' ;
 (:~
  : this function 
  :)
-declare function entry($node as node()*, $options as map(*)) as element() {
+declare function entry($node as node()*, $options) as element() {
   <div>{ dispatch($node, $options) }</div>
 };
 
 (:~
  : this function dispatches the treatment of the XML document
  :)
-declare function dispatch($node as node()*, $options as map(*)) as item()* {
+declare function dispatch($node as node()*, $options) as item()* {
   typeswitch($node)
     case text() return $node
     case element(tei:lb) return lb($node, $options)
@@ -84,7 +84,7 @@ declare function dispatch($node as node()*, $options as map(*)) as item()* {
 (:~
  : This function pass through child nodes (xsl:apply-templates)
  :)
-declare function passthru($nodes as node(), $options as map(*)) as item()* {
+declare function passthru($nodes as node(), $options) as item()* {
   for $node in $nodes/node()
   return dispatch($node, $options)
 };
@@ -96,14 +96,14 @@ declare function passthru($nodes as node(), $options as map(*)) as item()* {
  : ~:~:~:~:~:~:~:~:~
  :)
 
-declare function div($node as element(tei:div)+, $options as map(*)) {
+declare function div($node as element(tei:div)+, $options) {
   <div>
     { if ($node/@xml:id) then attribute id { $node/@xml:id } else (),
     passthru($node, $options)}
   </div>
 };
 
-declare function head($node as element(tei:head)+, $options as map(*)) as element() {   
+declare function head($node as element(tei:head)+, $options) as element() {   
  <h4>{ passthru($node, $options) }</h4>(:  if ($node/parent::tei:div) then
     let $type := $node/parent::tei:div/@type
     let $level := if ($node/ancestor::div) then fn:count($node/ancestor::div) + 1 else 1
@@ -119,28 +119,28 @@ declare function head($node as element(tei:head)+, $options as map(*)) as elemen
   else  passthru($node, $options) :)
 };
 
-declare function p($node as element(tei:p)+, $options as map(*)) {
+declare function p($node as element(tei:p)+, $options) {
   <p>{ passthru($node, $options) }</p>
 };
 
-declare function list($node as element(tei:list)+, $options as map(*)) {
+declare function list($node as element(tei:list)+, $options) {
   switch ($node) 
   case $node/@type='ordered' return <ol>{ passthru($node, $options) }</ol>
   case $node[child::tei:label] return <dl>{ passthru($node, $options) }</dl>
   default return <ul>{ passthru($node, $options) }</ul>
 };
 
-declare function synopsx.mappings.tei2html:item($node as element(tei:item)+, $options as map(*)) {
+declare function synopsx.mappings.tei2html:item($node as element(tei:item)+, $options) {
   switch ($node)
   case $node[parent::*/tei:label] return <dd>{ passthru($node, $options) }</dd>
   default return <li>{ passthru($node, $options) }</li>
 };
 
-declare function label($node as element(tei:label)+, $options as map(*)) {
+declare function label($node as element(tei:label)+, $options) {
   <dt>{ passthru($node, $options) }</dt>
 };
 
-declare function note($node as element(tei:note)+, $options as map(*)) {
+declare function note($node as element(tei:note)+, $options) {
   if ($node[parent::tei:biblStruct])
   then <p class='noteBibl'><em>Note : </em> { passthru($node, $options) }</p>
   else
@@ -155,19 +155,19 @@ declare function note($node as element(tei:note)+, $options as map(*)) {
     else (<div class='note'>{ passthru($node, $options) }</div>)
 };
 
-declare function table($node as element(tei:table), $options as map(*)) {
+declare function table($node as element(tei:table), $options) {
   <table>{ passthru($node, $options) }</table>
 };
 
-declare function row($node as element(tei:row), $options as map(*)) {
+declare function row($node as element(tei:row), $options) {
   <tr>{ passthru($node, $options) }</tr>
 };
 
-declare function cell($node as element(tei:cell), $options as map(*)) {
+declare function cell($node as element(tei:cell), $options) {
   <td>{ passthru($node, $options) }</td>
 };
 
-declare function formula($node as element(tei:formula), $options as map(*)) {
+declare function formula($node as element(tei:formula), $options) {
    $node/*
 };
 
@@ -176,7 +176,7 @@ declare function formula($node as element(tei:formula), $options as map(*)) {
  : tei inline
  : ~:~:~:~:~:~:~:~:~
  :)
-declare function hi($node as element(tei:hi)+, $options as map(*)) {
+declare function hi($node as element(tei:hi)+, $options) {
   switch ($node)
   case ($node[@rend='italic' or @rend='it']) return <em>{ passthru($node, $options) }</em> 
   case ($node[@rend='bold' or @rend='b']) return <strong>{ passthru($node, $options) }</strong>
@@ -189,7 +189,7 @@ declare function hi($node as element(tei:hi)+, $options as map(*)) {
   default return <span class="{$node/@rend}">{ passthru($node, $options) }</span>
 };
 
-declare function lb($node as element(tei:lb), $options as map(*)) {
+declare function lb($node as element(tei:lb), $options) {
   let $lb := map:get($options, 'lb')
   return switch($node)
     case ($node[@rend='hyphen'] and $lb) return ('-', <br/>)
@@ -197,28 +197,28 @@ declare function lb($node as element(tei:lb), $options as map(*)) {
     default return ()
 };
 
-declare function pb($node as element(tei:pb), $options as map(*)) {
+declare function pb($node as element(tei:pb), $options) {
   switch ($node)
   case ($node[@ed and @n]) return (<br/>, <span class='pb'>{'{éd. ' || $node/@ed || ' : ' || $node/fn:data(@n) || '}' }</span>)
   case ($node/@n) return <span class='pb'>{'{' || $node/fn:data(@n) || '}' }</span>
   default return ()
 };
 
-declare function ref($node as element(tei:ref), $options as map(*)) {
+declare function ref($node as element(tei:ref), $options) {
    (<a id='{'ref' || $node/fn:substring-after(@target, '#')}' href='{$node/@target}'>{ passthru($node, $options) }</a>)
  
 };
 
-declare function said($node as element(tei:said), $options as map(*)) {
+declare function said($node as element(tei:said), $options) {
   <quote>{ passthru($node, $options) }</quote>
 };
 
 
-declare function figure($node as element(tei:figure), $options as map(*)) {
+declare function figure($node as element(tei:figure), $options) {
   <figure>{ passthru($node, $options) }</figure>
 };
 
-declare function title($node as element(tei:title), $options as map(*)) {
+declare function title($node as element(tei:title), $options) {
   <em class="title">{ passthru($node, $options) }</em>
 };
 
@@ -228,7 +228,7 @@ declare function title($node as element(tei:title), $options as map(*)) {
  : ~:~:~:~:~:~:~:~:~
  :)
 
-declare function listBibl($node, $options as map(*)) {
+declare function listBibl($node, $options) {
   <ul id="{$node/@xml:id}">{ passthru($node, $options) }</ul>
 };
 
@@ -236,7 +236,7 @@ declare function listBibl($node, $options as map(*)) {
  : This function treats tei:analytic
  : @todo group author and editor to treat distinctly
  :)
-declare function getAnalytic($node, $options as map(*)) {
+declare function getAnalytic($node, $options) {
   getResponsabilities($node, $options), 
   getTitle($node, $options)
 };
@@ -244,7 +244,7 @@ declare function getAnalytic($node, $options as map(*)) {
 (:~
  : This function treats tei:monogr
  :)
-declare function getMonogr($node, $options as map(*)) {
+declare function getMonogr($node, $options) {
   getResponsabilities($node, $options),
   getTitle($node, $options),
   getEdition($node/node(), $options),
@@ -257,7 +257,7 @@ declare function getMonogr($node, $options as map(*)) {
  : @todo group authors and editors to treat them distinctly
  : @todo "éd." vs "éds."
  :)
-declare function getResponsabilities($node, $options as map(*)) {
+declare function getResponsabilities($node, $options) {
   let $nbResponsabilities := fn:count($node/tei:author | $node/tei:editor)
   for $responsability at $count in $node/tei:author | $node/tei:editor
   return if ($count = $nbResponsabilities) then (getResponsability($responsability, $options), '. ')
@@ -268,7 +268,7 @@ declare function getResponsabilities($node, $options as map(*)) {
  : si le dernier auteur mettre un séparateur à la fin
  :
  :)
-declare function getResponsability($node, $options as map(*)) {
+declare function getResponsability($node, $options) {
   if ($node/tei:forename or $node/tei:surname) 
   then getName($node, $options)
   else passthru($node, $options)
@@ -283,7 +283,7 @@ declare function persName($node, $options) {
  :
  : @todo cases with only one element
  :)
-declare function getName($node, $options as map(*)) {
+declare function getName($node, $options) {
   if ($node/tei:forename and $node/tei:surname)
   then (<span class="smallcaps">{$node/tei:surname/text()}</span>, ', ', $node/tei:forename/text())
   else if ($node/tei:surname) then <span class="smallcaps">{$node/tei:surname/text()}</span>
@@ -297,7 +297,7 @@ declare function getName($node, $options as map(*)) {
  : different html element whereas it is an analytic or a monographic title
  : @todo serialize the text properly for tei:hi, etc.
  :)
-declare function getTitle($node, $options as map(*)) {
+declare function getTitle($node, $options) {
   for $title in $node/tei:title
   let $separator := '. '
   return if ($title[@level='a'])
@@ -305,15 +305,15 @@ declare function getTitle($node, $options as map(*)) {
     else (<em class="title">{$title/text()}</em>, $separator)
 };
 
-declare function getEdition($node, $options as map(*)) {
+declare function getEdition($node, $options) {
  $node/tei:edition/text()
 };
 
-declare function getMeeting($node, $options as map(*)) {
+declare function getMeeting($node, $options) {
   $node/tei:meeting/text()
 };
 
-declare function getImprint($node, $options as map(*)) {
+declare function getImprint($node, $options) {
   for $vol in $node/tei:biblScope[@type='vol']
   return if ($vol[following-sibling::tei:*]) then ($vol, ', ')
     else ($vol, '. '), 
@@ -343,7 +343,7 @@ declare function getImprint($node, $options as map(*)) {
  : ~:~:~:~:~:~:~:~:~
  :)
 
-declare function biblItem($node, $options as map(*)) {
+declare function biblItem($node, $options) {
   for $node in $node[fn:not(@corresp)]
  (:  order by fn:number(fn:substring($x/@xml:id, 15, 4)), fn:substring($x/@xml:id, 20) :)
   return 
@@ -360,13 +360,13 @@ declare function biblItem($node, $options as map(*)) {
   </li>
 };
  
-declare function graphic($node as element(tei:graphic), $options as map(*)) {
+declare function graphic($node as element(tei:graphic), $options) {
   if ($node/@url)
   then (<a href='{'/static/img/' || $node/ancestor::tei:TEI//tei:sourceDesc//tei:idno[@type='old'] || '/' || $node/@url}'><img class="displayed" width="400" height="400" src='{'/static/img/' || $node/ancestor::tei:TEI//tei:sourceDesc//tei:idno[@type='old'] || '/' || $node/@url}'/></a>)
   else ()
 };
  
-declare function idno($node as element(tei:idno), $options as map(*)) {
+declare function idno($node as element(tei:idno), $options) {
   if ($node[@type='url_pdf'])
   then (<a href='{$node}'><i class="fa fa-file-pdf-o"/> [Voir le pdf]</a>)
   else if ($node[@type='url_pdf']) then (<br/>, <a href='{$node}'>[Voir le pdf]</a>)
@@ -378,6 +378,6 @@ declare function idno($node as element(tei:idno), $options as map(*)) {
   else ()
 };
 
-declare function supplied($node as element(tei:supplied), $options as map(*)) {
+declare function supplied($node as element(tei:supplied), $options) {
   <span class='supplied'>[{ passthru($node, $options) }]</span>
 };
