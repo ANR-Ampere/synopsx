@@ -46,6 +46,13 @@ declare function dispatch($node as node()*, $options) as item()* {
     case element(tei:hi) return hi($node, $options)
     (:  case element(tei:date) return getDate($node, $options) :)
     case element(tei:p) return p($node, $options)
+    case element(tei:add) return add($node, $options)
+    case element(tei:del) return del($node, $options)
+    case element(tei:gap) return gap($node, $options)
+    case element(tei:choice) return choice($node, $options)
+    case element(tei:unclear) return unclear($node, $options)
+    case element(tei:ex) return ex($node, $options)
+    case element(tei:foreign) return foreign($node, $options)
     case element(tei:cell) return cell($node, $options)
     case element(tei:row) return row($node, $options)
     case element(tei:table) return table($node, $options)
@@ -140,6 +147,7 @@ declare function label($node as element(tei:label)+, $options) {
   <dt>{ passthru($node, $options) }</dt>
 };
 
+
 declare function note($node as element(tei:note)+, $options) {
   if ($node[parent::tei:biblStruct])
   then <p class='noteBibl'><em>Note : </em> { passthru($node, $options) }</p>
@@ -148,12 +156,35 @@ declare function note($node as element(tei:note)+, $options) {
     then 
       <div class="note">
         <a id='{$node/@xml:id}' href='{'#ref' || $node/@xml:id}'>{
-          let $ref := $node/ancestor::tei:text//tei:ref[fn:substring-after(@target, '#') = $node/@xml:id]
-          return if ($ref) then $ref else ()
+          for $ref in $node/ancestor::tei:text//tei:ref[fn:substring-after(@target, '#') = $node/@xml:id]
+          return if ($ref) then ($ref) else ()
         }</a>
         {passthru($node, $options)}</div>
     else (<div class='note'>{ passthru($node, $options) }</div>)
 };
+(:~
+ : Proposition pour les notes, à mettre en marge au niveau de l'appel de notes
+ :)
+(: declare function note($node as element(tei:note)+, $options) {
+      switch ($node)
+      case ($node[parent::tei:biblStruct]) return <p class='noteBibl'><em>Note : </em> { passthru($node, $options) }</p>
+      case ($node[@resp[fn:contains(., 'AMA')]]) return
+        (<div class="manchetteGauche">
+           <p class="handShift">{ getNote($node, $options) }</p>
+        </div>)
+      case ($node[@resp[fn:contains(., 'CGA' or 'CAK' or 'CB' or 'PP' or 'DIR')]]) return
+        (<div class="manchetteDroite">
+           <p class="handShift">{ getNote($node, $options) }</p>
+         </div>)   
+      default return <div class='note'>{ passthru($node, $options) }</div>
+};
+
+declare function getNote($node as element(), $options) {
+  (<a id='{$node/@xml:id}' href='{'#ref' || $node/@xml:id}'>{
+          let $ref := $node/ancestor::tei:text//tei:ref[fn:substring-after(@target, '#') = $node/@xml:id]
+          return if ($ref) then $ref else ()
+  }</a>, passthru($node, $options))
+}; :)
 
 declare function table($node as element(tei:table), $options) {
   <table>{ passthru($node, $options) }</table>
@@ -189,6 +220,23 @@ declare function hi($node as element(tei:hi)+, $options) {
   default return <span class="{$node/@rend}">{ passthru($node, $options) }</span>
 };
 
+(:~
+ : @todo gérer les cas avec l'attribut @hand pour les archives
+ : @todo vérifier que la fonction marche
+ :)
+declare function add($node as element(tei:add)+, $options) {
+  <sup class='add'>{ passthru($node, $options) }</sup>
+};
+
+(:~
+ : @todo: vérifier que la fonction marche!
+ :)
+declare function del($node as element(tei:del)+, $options) {
+  switch ($node)
+  case ($node[@type='illisible']) return <span class='del'>[illisible]</span>
+  default return <del>{ passthru($node, $options) }</del>
+};
+
 declare function lb($node as element(tei:lb), $options) {
   (: let $lb := map:get($options, 'lb')
   return switch($node)
@@ -201,16 +249,64 @@ declare function lb($node as element(tei:lb), $options) {
     default return ()
 };
 
+(:~
+ : @todo vérifier que la fonction marche
+ :)
+declare function gap($node as element(tei:gap)+, $options) {
+  switch ($node)
+  case ($node[@reason='lacune']) return <span class='lacune'>[lacune]</span>
+  case ($node[@reason='illisible']) return <span class='lacune'>[illisible]</span>
+  case ($node[@reason='liste_botanique']) return <span class='lacune'>[liste botanique]</span>
+  case ($node[@reason='liste_zoologique']) return <span class='lacune'>[liste zoologique]</span>
+  case ($node[@reason='expressions__mathématiques']) return <span class='lacune'>[expressions mathématiques]</span>
+  case ($node[@reason='imprimé']) return <span class='lacune'>[imprimé]</span>
+  default return ()
+};
+
+
+declare function unclear($node as element(tei:unclear)+, $options) {
+  switch ($node)
+  case ($node/child::text()) return <mark>{ passthru($node, $options) }</mark>
+  case ($node[fn:not(child::text())]) return <span class='unclear'>[illisible]</span>
+  default return <span class='unclear'>{ passthru($node, $options) }</span>
+};
+
+(:~
+ : @todo vérifier que la fonction marche dans les archives
+ :)
+declare function ex($node as element(tei:ex)+, $options) {
+  <em class='ex'>{ passthru($node, $options) }</em>
+};
+
+(:~
+ : @todo vérifier que la fonction marche
+ :)
+declare function choice($node as element(tei:choice)+, $options) {
+  switch ($node)
+  case ($node[tei:abbr]) return <a href='#' class='infoAbbr'>{ passthru($node/tei:expan, $options) } <span>{ passthru($node/tei:abbr, $options) }</span></a>
+  case ($node[tei:sic]) return <a href='#' class='infoAbbr'>{ passthru($node/tei:corr, $options) } <span>{ passthru($node/tei:sic, $options) } [sic]</span></a>
+  default return <span class='choice'>{ passthru($node, $options) }</span>
+};
+
+declare function foreign($node as element(tei:foreign)+, $options) {
+  if ($node[fn:not(@xml:lang = 'fr')]) then <em class='lang'>{ passthru($node, $options) }</em> else passthru($node, $options)
+};
+
+(:~
+ : @todo: gérer les attributs @facs pour les archives
+ : @todo: gérer les attributs @type='deplacement'
+ :)
 declare function pb($node as element(tei:pb), $options) {
   switch ($node)
+  case ($node[@ed and @n and @rend='hyphen']) return (<span class='pb'>-</span>, <br/>, <span class='pb'>{'{éd. ' || $node/@ed || ' : ' || $node/fn:data(@n) || '}-' }</span>)
   case ($node[@ed and @n]) return (<br/>, <span class='pb'>{'{éd. ' || $node/@ed || ' : ' || $node/fn:data(@n) || '}' }</span>)
+  case ($node[@rend='hyphen' and @n]) return (<br/>, <span class='pb'>{ '-{' || $node/fn:data(@n) || '}-' }</span>)
   case ($node/@n) return <span class='pb'>{'{' || $node/fn:data(@n) || '}' }</span>
   default return ()
 };
 
 declare function ref($node as element(tei:ref), $options) {
    (<a id='{'ref' || $node/fn:substring-after(@target, '#')}' href='{$node/@target}'>{ passthru($node, $options) }</a>)
- 
 };
 
 declare function said($node as element(tei:said), $options) {
