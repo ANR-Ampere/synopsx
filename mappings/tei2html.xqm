@@ -319,7 +319,10 @@ declare function figure($node as element(tei:figure), $options) {
 };
 
 declare function title($node as element(tei:title), $options) {
-  <em class="title">{ passthru($node, $options) }</em>
+  switch ($node)
+  case ($node[fn:contains(@ref, 'biblio_d_ampere')]) return <em class="title"><a href='/ampere/publications/{$node/@ref}'>{ passthru($node, $options) }</a></em>
+  case ($node[fn:contains(@ref, 'biblio_ouvrages_mentionnés')]) return <em class="title"><a href='/ampere/publications-citées/{$node/@ref}'>{ passthru($node, $options) }</a></em>
+  default return <em class="title">{ passthru($node, $options) }</em>
 };
 
 (:~
@@ -448,7 +451,15 @@ declare function biblItem($node, $options) {
  (:  order by fn:number(fn:substring($x/@xml:id, 15, 4)), fn:substring($x/@xml:id, 20) :)
   return 
     <li id="{$node/@xml:id}">
-      <a class="badge" href="/ampere/publications/{$node/fn:data(fn:substring-after(@xml:id, 'publi_'))}">{$node/fn:data(fn:substring-after(@xml:id, 'publi_'))}</a>{ passthru($node, $options) }
+      
+      {switch ($node)
+      case ($node[fn:contains(@xml:id, 'ampere_publi_')]) return <a class="badge" href="/ampere/publications/{$node/fn:data(fn:substring-after(@xml:id, 'publi_'))}">{$node/fn:data(fn:substring-after(@xml:id, 'publi_'))}</a>
+      case ($node[fn:contains(@xml:id, 'biblio_ouvrages_mentionnés')]) return <a class="badge">{$node/fn:data(fn:substring-after(@xml:id, 'mentionnés_'))}</a>
+      default return <a class="badge" href="/ampere/publications/{$node/fn:data(fn:substring-after(@xml:id, 'publi_'))}">{$node/fn:data(fn:substring-after(@xml:id, 'publi_'))}</a>
+      }
+      
+      
+      { passthru($node, $options) }
       {if (fn:exists($node/ancestor::tei:listBibl/tei:biblStruct[fn:substring-after(@corresp, '#') = $node/@xml:id]) )
       then <ul>
         {for $f in $node/ancestor::tei:listBibl/tei:biblStruct[@corresp]
