@@ -301,7 +301,7 @@ declare function pb($node as element(tei:pb), $options) {
   case ($node[@ed and @n and @rend='hyphen']) return (<span class='pb'>-</span>, <br/>, <span class='pb'>{'{éd. ' || $node/@ed || ' : ' || $node/fn:data(@n) || '}-' }</span>)
   case ($node[@ed and @n]) return (<br/>, <span class='pb'>{'{éd. ' || $node/@ed || ' : ' || $node/fn:data(@n) || '}' }</span>)
   case ($node[@rend='hyphen' and @n]) return (<br/>, <span class='pb'>{ '-{' || $node/fn:data(@n) || '}-' }</span>)
-  case ($node/@n) return <span class='pb'>{'{' || $node/fn:data(@n) || '}' }</span>
+  case ($node[@n]) return (<br/>, <span class='pb'>{'{' || $node/fn:data(@n) || '}' }</span>)
   default return ()
 };
 
@@ -454,7 +454,7 @@ declare function biblItem($node, $options) {
       
       {switch ($node)
       case ($node[fn:contains(@xml:id, 'ampere_publi_')]) return <a class="badge" href="/ampere/publications/{$node/fn:data(fn:substring-after(@xml:id, 'publi_'))}">{$node/fn:data(fn:substring-after(@xml:id, 'publi_'))}</a>
-      case ($node[fn:contains(@xml:id, 'biblio_ouvrages_mentionnés')]) return <a class="badge">{$node/fn:data(fn:substring-after(@xml:id, 'mentionnés_'))}</a>
+      case ($node[fn:contains(@xml:id, 'biblio_ouvrages_mentionnés')]) return <a class="badge" id="/ampere/publications-citées/{$node/fn:data(fn:substring-after(@xml:id, 'mentionnés_'))}">{$node/fn:data(fn:substring-after(@xml:id, 'mentionnés_'))}</a>
       default return <a class="badge" href="/ampere/publications/{$node/fn:data(fn:substring-after(@xml:id, 'publi_'))}">{$node/fn:data(fn:substring-after(@xml:id, 'publi_'))}</a>
       }
       
