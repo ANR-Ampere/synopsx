@@ -69,6 +69,7 @@ declare function dispatch($node as node()*, $options) as item()* {
     case element(tei:docEdition) return docEdition($node, $options)
     case element(tei:docImprint) return docImprint($node, $options)
     case element(tei:addrLine) return addrLine($node, $options)
+    case element(tei:correspDesc) return correspDesc($node, $options)
     case element(tei:ref) return ref($node, $options)
     case element(tei:note) return note($node, $options)
     case element(tei:idno) return idno($node, $options)
@@ -86,9 +87,9 @@ declare function dispatch($node as node()*, $options) as item()* {
     case element(tei:graphic) return graphic($node, $options)
     case element(tei:body) return passthru($node, $options)
     case element(tei:back) return passthru($node, $options)
-    case element(tei:front) return passthru($node, $options)
+    case element(tei:front) return front($node, $options)
     case element(tei:text) return passthru($node, $options)
-    case element(tei:teiHeader) return ''
+    case element(tei:teiHeader) return teiHeader($node, $options)
     case element(tei:TEI) return passthru($node, $options)
     case element(tei:said) return said($node, $options)
     default return passthru($node, $options)
@@ -108,6 +109,10 @@ declare function passthru($nodes as node(), $options) as item()* {
  : tei textstructure
  : ~:~:~:~:~:~:~:~:~
  :)
+
+declare function teiHeader($node as element(tei:teiHeader), $options) {
+  passthru($node, $options)
+};
 
 declare function div($node as element(tei:div)+, $options) {
   <div>
@@ -134,7 +139,7 @@ declare function head($node as element(tei:head)+, $options) as element() {
 
 declare function p($node as element(tei:p)+, $options) {
   switch ($node)
-  case (($node[ancestor::tei:note])[1]) return <p class='inline'>{ passthru($node, $options) }</p>
+  case ($node[1][ancestor::tei:note]) return <p class='inline'>{ passthru($node, $options) }</p>
   default return <p>{ passthru($node, $options) }</p>
 };
 
@@ -166,34 +171,11 @@ declare function note($node as element(tei:note)+, $options) {
           for $ref in $node/ancestor::tei:text//tei:ref[fn:substring-after(@target, '#') = $node/@xml:id]
           return if ($ref) then ($ref) else ()
         }</a>
-      </sup> 
+      </sup>&#160;
       {passthru($node, $options)}
     </div>
   default return <div class='note'>{ passthru($node, $options) }</div>
 };
-(:~
- : Proposition pour les notes, à mettre en marge au niveau de l'appel de notes
- :)
-(: declare function note($node as element(tei:note)+, $options) {
-      switch ($node)
-      case ($node[parent::tei:biblStruct]) return <p class='noteBibl'><em>Note : </em> { passthru($node, $options) }</p>
-      case ($node[@resp[fn:contains(., 'AMA')]]) return
-        (<div class="manchetteGauche">
-           <p class="handShift">{ getNote($node, $options) }</p>
-        </div>)
-      case ($node[@resp[fn:contains(., 'CGA' or 'CAK' or 'CB' or 'PP' or 'DIR')]]) return
-        (<div class="manchetteDroite">
-           <p class="handShift">{ getNote($node, $options) }</p>
-         </div>)   
-      default return <div class='note'>{ passthru($node, $options) }</div>
-};
-
-declare function getNote($node as element(), $options) {
-  (<a id='{$node/@xml:id}' href='{'#ref' || $node/@xml:id}'>{
-          let $ref := $node/ancestor::tei:text//tei:ref[fn:substring-after(@target, '#') = $node/@xml:id]
-          return if ($ref) then $ref else ()
-  }</a>, passthru($node, $options))
-}; :)
 
 declare function table($node as element(tei:table), $options) {
   <table>{ passthru($node, $options) }</table>
@@ -273,7 +255,7 @@ declare function lb($node as element(tei:lb), $options) {
     default return () :)
     switch($node)
     case ($node[@rend='hyphen']) return ('-', <br/>)
-    case ($node) return <br/>
+    case ($node) return <br/> (: &#10548; :)
     default return ()
 };
 
@@ -294,8 +276,8 @@ declare function gap($node as element(tei:gap)+, $options) {
 
 declare function unclear($node as element(tei:unclear)+, $options) {
   switch ($node)
-  case ($node/child::text()) return <mark>{ passthru($node, $options) }</mark>
-  case ($node[fn:not(child::text())]) return <span class='unclear'>[illisible]</span>
+  case ($node[child::text()]) return <mark>{ passthru($node, $options) }</mark>
+  case ($node[fn:not(child::text())]) return <mark>[illisible]</mark>
   default return <span class='unclear'>{ passthru($node, $options) }</span>
 };
 
@@ -333,8 +315,15 @@ declare function pb($node as element(tei:pb), $options) {
   default return ()
 };
 
+(:~
+ : @todo vérifier que la fonction marche
+ :)
 declare function ref($node as element(tei:ref), $options) {
-   (<sup><a id='{'ref' || $node/fn:substring-after(@target, '#')}' href='{$node/@target}'>{ passthru($node, $options) }</a></sup>)
+  switch ($node)
+  case ($node[@type='archives']) return <a href='/ampere/archives/{$node/fn:substring-after(@target, 'chem_')}'>{ passthru($node, $options) }</a>
+  case ($node[@type='correspondance']) return <a href='/ampere/correspondance/{$node/fn:substring-after(@target, 'corr_')}'>{ passthru($node, $options) }</a>
+  case ($node[@type='publication']) return <a href='/ampere/publications/{$node/fn:substring-after(@target, 'publi_')}'>{ passthru($node, $options) }</a>
+  default return (<sup><a id='{'ref' || $node/fn:substring-after(@target, '#')}' href='{$node/@target}'>{ passthru($node, $options) }</a></sup>)
 };
 
 declare function said($node as element(tei:said), $options) {
@@ -348,17 +337,21 @@ declare function figure($node as element(tei:figure), $options) {
 
 declare function title($node as element(tei:title), $options) {
   switch ($node)
-  case ($node[fn:contains(@ref, 'biblio_d_ampere')]) return <em class="title"><a href='/ampere/publications/{$node/@ref}'>{ passthru($node, $options) }</a></em>
-  case ($node[fn:contains(@ref, 'biblio_ouvrages_mentionnés')]) return <em class="title"><a href='/ampere/publications-citées/{$node/@ref}'>{ passthru($node, $options) }</a></em>
+  case ($node[@type='publication']) return <em class="title"><a href='/ampere/publications/{$node/@ref}'>{ passthru($node, $options) }</a></em>
+  case ($node[@type='ouvrages_mentionnes']) return <em class="title"><a href='/ampere/publications-citées/{$node/@ref}'>{ passthru($node, $options) }</a></em>
   default return <em class="title">{ passthru($node, $options) }</em>
 };
 
+declare function front($node as element(tei:front), $options) {
+  <div class="front">{ passthru($node, $options) }</div>
+};
+
 declare function titlePart($node as element(tei:titlePart), $options) {
-  <em class="front">{ passthru($node, $options) }</em>
+  <em>{ passthru($node, $options) }</em>
 };
 
 declare function docEdition($node as element(tei:docEdition), $options) {
-  (<br/>, <span class='front'>{ passthru($node, $options) }</span> )
+  (<br/>, passthru($node, $options)  )
 };
 
 declare function docImprint($node as element (tei:docImprint), $options) {
@@ -366,7 +359,60 @@ declare function docImprint($node as element (tei:docImprint), $options) {
 };
 
 declare function addrLine($node as element(tei:addrLine), $options) {
-  (<span class='front'>{ passthru($node, $options) }</span>, <br/>)
+  (<span>{ passthru($node, $options) }</span>, <br/>)
+};
+
+(: declare function getSourceDesc($node as element()*, $options) {
+  let $source := $node//tei:sourceDesc
+  return 
+    switch ($source)
+    case ($source[/tei:msDesc]) return 'source manuscrite'
+    case ($source[/tei:biblStruct]) return passthru($node, $options) 
+    default return 'Problème source'
+}; :)
+
+(:~
+ : ~:~:~:~:~:~:~:~:~
+ : tei correspondance
+ : ~:~:~:~:~:~:~:~:~
+ :)
+ 
+ declare function correspDesc($node as element(tei:correspDesc)*, $options) {
+  for $correspDesc in $node
+  return 
+    <table class='corr'>
+      <tr>
+        <td><a href='/ampere/correspondance/{getIdItem(($node/ancestor::tei:TEI//tei:sourceDesc//tei:*[@xml:id])[1], $options)}'>{getIdItem(($node/ancestor::tei:TEI//tei:sourceDesc//tei:*[@xml:id])[1], $options)}</a></td>
+        <td>Lettre de { getSenders($node/tei:correspAction[@type='sent'], $options) } à { getAdressees($node/tei:correspAction[@type='received'], $options) }</td>
+        <td>{$node/tei:correspAction[@type='sent']/tei:date}</td>
+      </tr>
+    </table>
+ };
+
+declare function getSenders($node, $options) {
+  let $nbResponsabilities := fn:count($node/tei:persName[@type='sender'])
+  for $responsability at $count in $node/tei:persName[@type='sender']
+  return if ($count = $nbResponsabilities) then (getSender($responsability, $options), ' ')
+    else (getSender($responsability, $options), ' ; ')
+};
+
+declare function getSender($node as element()*, $options) {
+    switch ($node)
+    case ($node[@ref]) return <a href='/ampere/index-personnes{ $node/@ref }'>{ passthru($node, $options) }</a>
+    default return passthru($node, $options)
+};
+
+declare function getAdressees($node, $options) {
+  let $nbResponsabilities := fn:count($node/tei:persName[@type='adressee'])
+  for $responsability at $count in $node/tei:persName[@type='adressee']
+  return if ($count = $nbResponsabilities) then (getAdressee($responsability, $options), ' ')
+    else (getAdressee($responsability, $options), ' ; ')
+};
+
+declare function getAdressee($node as element()*, $options) {
+    switch ($node)
+    case ($node[@ref]) return <a href='/ampere/index-personnes/{ $node/@ref }'>{ passthru($node, $options) }</a>
+    default return passthru($node, $options)
 };
 
 (:~
@@ -490,26 +536,37 @@ declare function getImprint($node, $options) {
  : ~:~:~:~:~:~:~:~:~
  :)
 
-declare function biblItem($node, $options) {
-  for $node in $node[fn:not(@corresp)]
- (:  order by fn:number(fn:substring($x/@xml:id, 15, 4)), fn:substring($x/@xml:id, 20) :)
-  return 
-    <li id="{$node/@xml:id}">    
-      {switch ($node)
+declare function getIdItem($node as element()*, $options) {
+  switch ($node)
       case ($node[fn:contains(@xml:id, 'ampere_publi_')]) return <a class="badge" href="/ampere/publications/{$node/fn:data(fn:substring-after(@xml:id, 'publi_'))}">{$node/fn:data(fn:substring-after(@xml:id, 'publi_'))}</a>
       case ($node[fn:contains(@xml:id, 'biblio_ouvrages_mentionnés')]) return <a class="badge" id="/ampere/publications-citées/{$node/fn:data(fn:substring-after(@xml:id, 'mentionnés_'))}">{$node/fn:data(fn:substring-after(@xml:id, 'mentionnés_'))}</a>
-      default return <a class="badge" href="/ampere/publications/{$node/fn:data(fn:substring-after(@xml:id, 'publi_'))}">{$node/fn:data(fn:substring-after(@xml:id, 'publi_'))}</a>
-      }
-      { passthru($node, $options) }
-      {if (fn:exists($node/ancestor::tei:listBibl/tei:biblStruct[fn:substring-after(@corresp, '#') = $node/@xml:id]) )
-      then <ul>
-        {for $f in $node/ancestor::tei:listBibl/tei:biblStruct[@corresp]
-           where fn:substring-after($f/@corresp, '#') = $node/@xml:id
-           return <li  id="{$f/@xml:id}"><a class="badge">{$node/fn:data(fn:substring-after($f/@xml:id, 'publi_'))}</a>{ passthru($f, $options) }</li>
-     }
-    </ul>
-    else ()}
-  </li>
+      case ($node[fn:contains(@xml:id, 'ampere_corr_')]) return <a class="badge" href="/ampere/correspondance/{$node/fn:data(fn:substring-after(@xml:id, 'corr_'))}">{$node/fn:data(fn:substring-after(@xml:id, 'corr_'))}</a>
+      default return ()
+};
+
+declare function getOtherEdition($node, $options) {
+  if (fn:exists($node/ancestor::tei:listBibl/tei:biblStruct[fn:substring-after(@corresp, '#') = $node/@xml:id]) )
+          then <ul>
+            {for $f in $node/ancestor::tei:listBibl/tei:biblStruct[@corresp]
+            where fn:substring-after($f/@corresp, '#') = $node/@xml:id
+            return <li  id="{$f/@xml:id}"><a class="badge">{$node/fn:concat('P&#10548;', fn:substring-after($f/@xml:id, 'publi_P'))}</a>{ passthru($f, $options) }</li>}
+                </ul>
+          else ()
+};
+
+declare function biblItem($node as element(tei:biblStruct)*, $options) {
+  for $node in $node[fn:not(@corresp)]
+  return
+    switch ($node) 
+    case ($node[parent::tei:listBibl]) return 
+      <li id="{$node/@xml:id}">
+        { getIdItem($node, $options) }
+        { passthru($node, $options) }
+        {getOtherEdition($node, $options)}
+      </li>
+    default return (getIdItem($node, $options), 
+         passthru($node, $options),
+          getOtherEdition($node, $options) )
 };
  
 declare function graphic($node as element(tei:graphic), $options) {
@@ -519,15 +576,14 @@ declare function graphic($node as element(tei:graphic), $options) {
 };
  
 declare function idno($node as element(tei:idno), $options) {
-  if ($node[@type='url_pdf'])
-  then (<a href='{$node}'><i class="fa fa-file-pdf-o"/> [Voir le pdf]</a>)
-  else if ($node[@type='url_pdf']) then (<br/>, <a href='{$node}'>[Voir le pdf]</a>)
-  else if ($node[@type='url_gallica']) then (<a href='{$node}'>[Voir sur Gallica]</a>)
-  else if ($node[@type='url_google']) then (<a href='{$node}'>[Voir sur google]</a>)
-  else if ($node[@type='url_cnum']) then (<a href='{$node}'>[Lire sur le CNUM]</a>)
-  else if ($node[@type='url_bio']) then (<a href='{$node}'>[Lire sur Biodiversity Heritage Library]</a>)
-  else if ($node[fn:contains(@type, 'url')]) then (<a href='{$node}'>[voir le document]</a>)
-  else ()
+  switch ($node)
+  case ($node[@type='url_pdf']) return (<a href='{$node}'>[Voir le pdf]</a>)
+  case ($node[@type='url_gallica']) return (<a href='{$node}'>[Voir sur Gallica]</a>)
+  case ($node[@type='url_google']) return (<a href='{$node}'>[Voir sur google]</a>)
+  case ($node[@type='url_cnum']) return (<a href='{$node}'>[Lire sur le CNUM]</a>)
+  case ($node[@type='url_bio']) return (<a href='{$node}'>[Lire sur Biodiversity Heritage Library]</a>)
+  case ($node[fn:contains(@type, 'url')]) return (<a href='{$node}'>[voir le document]</a>)
+  default return ()
 };
 
 declare function supplied($node as element(tei:supplied), $options) {
