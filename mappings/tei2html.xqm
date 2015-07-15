@@ -180,11 +180,11 @@ declare function note($node as element(tei:note)+, $options) {
 };
 
 declare function table($node as element(tei:table), $options) {
-  <table>{ passthru($node, $options) }</table>
+  <table class="table">{ passthru($node, $options) }</table>
 };
 
 declare function row($node as element(tei:row), $options) {
-  <tr>{ passthru($node, $options) }</tr>
+  <tr class="tr">{ passthru($node, $options) }</tr>
 };
 
 (:~
@@ -192,9 +192,9 @@ declare function row($node as element(tei:row), $options) {
  :)
 declare function cell($node as element(tei:cell), $options) {
   switch ($node)
-  case ($node[@cols]) return <td colspan='{ $node/@cols }'>{ passthru($node, $options) }</td>
-  case ($node[@rows]) return <td rowspan='{ $node/@rows }'>{ passthru($node, $options) }</td>
-  default return <td>{ passthru($node, $options) }</td>
+  case ($node[@cols]) return <td class="td" colspan='{ $node/@cols }'>{ passthru($node, $options) }</td>
+  case ($node[@rows]) return <td class="td" rowspan='{ $node/@rows }'>{ passthru($node, $options) }</td>
+  default return <td class="td">{ passthru($node, $options) }</td>
 };
 
 declare function formula($node as element(tei:formula), $options) {
