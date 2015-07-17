@@ -140,9 +140,9 @@ declare function head($node as element(tei:head)+, $options) as element() {
 };
 
 declare function p($node as element(tei:p)+, $options) {
-  switch ($node)
-  case ($node[1][ancestor::tei:note]) return <p class='inline'>{ passthru($node, $options) }</p>
-  default return <p>{ passthru($node, $options) }</p>
+      switch ($node)
+      case ($node[1][ancestor::tei:note]) return <p class='inline'>{ passthru($node, $options) }</p>
+      default return <p class="pundit-content" about="{fn:concat('http:ampere.dev.huma-num.fr/ampere/', getCorpus($node, $options), '/', getId($node, $options))}">{ passthru($node, $options) }</p>
 };
 
 declare function list($node as element(tei:list)+, $options) {
@@ -550,13 +550,30 @@ declare function getImprint($node, $options) {
  : Surcharge
  : ~:~:~:~:~:~:~:~:~
  :)
+ 
+declare function getCorpus($node as element()*, $options) {
+  switch ($node)
+  case ($node[ancestor::tei:text/@type[fn:contains(., 'corr')]]) return $node/ancestor::tei:text/@type
+  case ($node[ancestor::tei:text/@type[fn:contains(., 'arch')]]) return $node/ancestor::tei:text/@type
+  case ($node[ancestor::tei:text/@type[fn:contains(., 'publi')]]) return $node/ancestor::tei:text/@type
+  default return ()
+};
+
 
 declare function getIdItem($node as element()*, $options) {
   switch ($node)
-      case ($node[fn:contains(@xml:id, 'ampere_publi_')]) return <a class="badge" href="/ampere/publications/{$node/fn:data(fn:substring-after(@xml:id, 'publi_'))}">{$node/fn:data(fn:substring-after(@xml:id, 'publi_'))}</a>
-      case ($node[fn:contains(@xml:id, 'biblio_ouvrages_mentionnés')]) return <a class="badge" id="/ampere/publications-citées/{$node/fn:data(fn:substring-after(@xml:id, 'mentionnés_'))}">{$node/fn:data(fn:substring-after(@xml:id, 'mentionnés_'))}</a>
-      case ($node[fn:contains(@xml:id, 'ampere_corr_')]) return <a class="badge" href="/ampere/correspondance/{$node/fn:data(fn:substring-after(@xml:id, 'corr_'))}">{$node/fn:data(fn:substring-after(@xml:id, 'corr_'))}</a>
-      default return ()
+  case ($node[fn:contains(@xml:id, 'ampere_publi_')]) return <a class="badge" href="/ampere/publications/{$node/fn:data(fn:substring-after(@xml:id, 'publi_'))}">{$node/fn:data(fn:substring-after(@xml:id, 'publi_'))}</a>
+  case ($node[fn:contains(@xml:id, 'biblio_ouvrages_mentionnés')]) return <a class="badge" id="/ampere/publications-citées/{$node/fn:data(fn:substring-after(@xml:id, 'mentionnés_'))}">{$node/fn:data(fn:substring-after(@xml:id, 'mentionnés_'))}</a>
+  case ($node[fn:contains(@xml:id, 'ampere_corr_')]) return <a class="badge" href="/ampere/correspondance/{$node/fn:data(fn:substring-after(@xml:id, 'corr_'))}">{$node/fn:data(fn:substring-after(@xml:id, 'corr_'))}</a>
+  default return ()
+};
+
+declare function getId($node as element()*, $options) {
+  switch ($node)
+  case ($node[ancestor::tei:TEI/tei:teiHeader//tei:*/(@xml:id[fn:contains(., 'publi')][1])]) return $node/ancestor::tei:TEI/tei:teiHeader//tei:sourceDesc//(tei:*[@xml:id])[1]/fn:data(fn:substring-after(@xml:id, 'publi_'))
+  case ($node[ancestor::tei:TEI/tei:teiHeader//tei:*/(@xml:id[fn:contains(., 'arch')][1])]) return $node/ancestor::tei:TEI/tei:teiHeader//tei:sourceDesc//(tei:*[@xml:id])[1]/fn:data(fn:substring-after(@xml:id, 'arch_'))
+  case ($node[ancestor::tei:TEI/tei:teiHeader//tei:*/(@xml:id[fn:contains(., 'corr')][1])]) return $node/ancestor::tei:TEI/tei:teiHeader//tei:sourceDesc//(tei:*[@xml:id])[1]/fn:data(fn:substring-after(@xml:id, 'corr_'))
+  default return ()
 };
 
 declare function getOtherEdition($node, $options) {
@@ -575,12 +592,13 @@ declare function biblItem($node as element(tei:biblStruct)*, $options) {
     switch ($node) 
     case ($node[parent::tei:listBibl]) return 
       <li id="{$node/@xml:id}">
-        { getIdItem($node, $options) }
+        { <b>{getIdItem($node, $options)}</b> }
         { passthru($node, $options) }
         {getOtherEdition($node, $options)}
       </li>
-    default return (getIdItem($node, $options), 
-         passthru($node, $options),
+    default return  
+         (passthru($node, $options),
+         getIdItem($node, $options),
           getOtherEdition($node, $options) )
 };
  
@@ -592,13 +610,13 @@ declare function graphic($node as element(tei:graphic), $options) {
  
 declare function idno($node as element(tei:idno), $options) {
   switch ($node)
-  case ($node[@type='url_pdf']) return (<a href='{$node}'>[Voir le pdf]</a>)
-  case ($node[@type='pdf']) return (<a href='/static/publications-PDF/{$node}'>[Voir le pdf]</a>)
-  case ($node[@type='url_gallica']) return (<a href='{$node}'>[Voir sur Gallica]</a>)
-  case ($node[@type='url_google']) return (<a href='{$node}'>[Voir sur google]</a>)
+  case ($node[@type='url_pdf']) return (<a href='{$node}'>[Lire le pdf]</a>)
+  case ($node[@type='pdf']) return (<a href='/static/publications-PDF/{$node}'>[Lire le pdf]</a>)
+  case ($node[@type='url_gallica']) return (<a href='{$node}'>[Lire sur Gallica]</a>)
+  case ($node[@type='url_google']) return (<a href='{$node}'>[Lire sur google]</a>)
   case ($node[@type='url_cnum']) return (<a href='{$node}'>[Lire sur le CNUM]</a>)
   case ($node[@type='url_bio']) return (<a href='{$node}'>[Lire sur Biodiversity Heritage Library]</a>)
-  case ($node[fn:contains(@type, 'url')]) return (<a href='{$node}'>[voir le document]</a>)
+  case ($node[fn:contains(@type, 'url')]) return (<a href='{$node}'>[Lire le document]</a>)
   default return ()
 };
 
