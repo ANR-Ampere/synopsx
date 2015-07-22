@@ -32,7 +32,9 @@ declare default function namespace 'synopsx.mappings.tei2html' ;
  : this function 
  :)
 declare function entry($node as node()*, $options as map(*)) as item()* {
-  dispatch($node, $options)
+ <div>
+    { dispatch($node, $options) }
+ </div>
 };
 
 (:~
@@ -85,6 +87,9 @@ declare function dispatch($node as node()*, $options as map(*)) as item()* {
     case element(tei:bibl) return biblItem($node, $options)
     case element(tei:biblStruct) return biblItem($node, $options)
     case element(tei:listBibl) return listBibl($node, $options)
+    case element(tei:witness) return witness($node, $options)
+    case element(tei:listWit) return listWit($node, $options)
+    case element(tei:msDesc) return msDesc($node, $options)
     case element(tei:figure) return figure($node, $options)
     case element(tei:formula) return formula($node, $options)
     case element(tei:graphic) return graphic($node, $options)
@@ -114,7 +119,9 @@ declare function passthru($nodes as node(), $options as map(*)) as item()* {
 
 declare function teiHeader($node as element(tei:teiHeader)+, $options as map(*)) {
   (: getSourceDesc($node, $options), :)
-  correspDesc($node//tei:correspDesc, $options)
+  switch ($node)
+  case ($node[ancestor::tei:TEI/tei:text[@type='correspondance']]) return correspDesc($node//tei:correspDesc, $options)
+  default return ()
 };
 
 declare function div($node as element(tei:div)+, $options as map(*)) {
@@ -132,7 +139,7 @@ declare function front($node as element(tei:front)+, $options as map(*)) {
 
 declare function head($node as element(tei:head)+, $options as map(*)) as element() {   
   <h4 class='head'>{ passthru($node, $options) }</h4>
-    if ($node/parent::tei:div) then
+   (: if ($node/parent::tei:div) then
     let $type := $node/parent::tei:div/@type
     let $level := if ($node/ancestor::div) then fn:count($node/ancestor::div) + 1 else 1
     return element { 'h' || $level } { passthru($node, $options) }
@@ -144,7 +151,7 @@ declare function head($node as element(tei:head)+, $options as map(*)) as elemen
     <strong>{ passthru($node, $options) }</strong>
   else if ($node/parent::tei:table) then
     <th>{ passthru($node, $options) }</th>
-  else  passthru($node, $options)
+  else  passthru($node, $options):)
 };
 
 declare function p($node as element(tei:p)+, $options as map(*)) {
@@ -214,8 +221,8 @@ declare function formula($node as element(tei:formula), $options as map(*)) {
  :)
 declare function cit($node as element(tei:cit)+, $options as map(*)) {
   switch ($node)
-  case ($node[@xml:lang]) return fn:concat('« ', <blockquote class='quote'><em class='cit'>{ passthru($node/tei:quote, $options) }</em></blockquote>, ' »')
-  default return fn:concat('« ', <blockquote class='quote'>{ passthru($node/tei:quote, $options) }</blockquote>, ' »')
+  case ($node[@xml:lang]) return fn:concat('« ', <blockquote class='quote'><em class='cit'>{ passthru($node, $options) }</em></blockquote>, ' »')
+  default return ('« ', <blockquote class='quote'>{ passthru($node, $options) }</blockquote>, ' »')
 };
 
 declare function closer($node as element(tei:closer)+, $options as map(*)) {
@@ -251,7 +258,7 @@ declare function del($node as element(tei:del)+, $options as map(*)) {
 declare function lb($node as element(tei:lb), $options as map(*)) {
     switch($node)
     case ($node[@rend='hyphen']) return ('-', <br/>)
-    case ($node and $lb) return <br/>
+    case ($node) return <br/>
     default return ()
 };
 
@@ -324,6 +331,10 @@ declare function docEdition($node as element(tei:docEdition), $options as map(*)
 
 declare function docImprint($node as element (tei:docImprint), $options) {
   (<br/>, passthru($node, $options))
+};
+
+declare function titlePart($node as element(tei:titlePart), $options as map(*)) {
+  (<br/>, passthru($node, $options)  )
 };
 
 declare function addrLine($node as element(tei:addrLine), $options as map(*)) {
@@ -487,6 +498,34 @@ declare function getImprint($node, $options as map(*)) {
     else '.'
 };
 
+(:~
+ : ~:~:~:~:~:~:~:~:~
+ : tei archives
+ : ~:~:~:~:~:~:~:~:~
+ :)
+declare function listWit($node as element(tei:listWit)*, $options as map(*)) {
+  <ul>{ passthru($node, $options) }</ul>
+};
+
+declare function witness($node as element(tei:witness)*, $options as map(*)) {
+  <li id='{$node/tei:*/@xml:id}'>{ passthru($node, $options) }</li>
+};
+
+declare function msDesc($node as element(tei:msDesc)*, $options as map(*)) {
+  for $node in $node 
+  return (
+    if ($node[tei:msIdentifier/tei:country]) then ($node/tei:msIdentifier/tei:country, ', ') else (),
+    if ($node[tei:msIdentifier/tei:settlement]) then ($node/tei:msIdentifier/tei:settlement, ', ') else (),
+    if ($node[tei:msIdentifier/tei:institution]) then ($node/tei:msIdentifier/tei:institution, ', ') else (),
+    if ($node[tei:msIdentifier/tei:repository]) then ($node/tei:msIdentifier/tei:repository, ', ') else (),
+    if ($node[tei:msIdentifier/tei:idno]) then 
+      (if ($node[tei:msIdentifier/tei:idno[fn:contains(., 'chemise')]]) 
+      then (<a href='http://ampere.dev.huma-num.fr/ampere/archives/chem{fn:substring-after($node/tei:msIdentifier/tei:idno, 'chemise ')}'>{ $node/tei:msIdentifier/tei:idno }</a>, '.')
+      else ($node/tei:msIdentifier/tei:idno)  
+  )
+    else ('.')
+  )
+};
 
 (:~
  : ~:~:~:~:~:~:~:~:~
