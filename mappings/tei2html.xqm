@@ -99,6 +99,7 @@ declare function dispatch($node as node()*, $options as map(*)) as item()* {
     case element(tei:back) return passthru($node, $options)
     case element(tei:teiHeader) return teiHeader($node, $options)
     case element(tei:TEI) return passthru($node, $options)
+    case element(tei:text) return synopsx.mappings.tei2html:text($node, $options)
     case element(tei:said) return said($node, $options)
     default return passthru($node, $options)
 };
@@ -124,6 +125,15 @@ declare function teiHeader($node as element(tei:teiHeader)+, $options as map(*))
   case ($node[ancestor::tei:TEI/tei:text[@type='correspondance']]) return correspDesc($node//tei:correspDesc, $options)
   case ($node[ancestor::tei:TEI/tei:text[@type='archives']]) return archivesList($node//tei:sourceDesc/tei:msDesc, $options)
   default return ()
+};
+
+declare function synopsx.mappings.tei2html:text($node as element(tei:text)+, $options as map(*)) {
+  let $numChem := $node/ancestor::tei:TEI/tei:text/fn:substring-after(@decls, 'chem')
+  return
+  switch ($node)
+  case ($node[ancestor::tei:group]) return 
+    <div><a id="ampere_arch_chem{$numChem}_{$node/@n}"><h4>Document {$node/fn:data(@n)}</h4></a>{ passthru($node, $options) }</div>
+  default return passthru($node, $options)
 };
 
 declare function div($node as element(tei:div)+, $options as map(*)) {
@@ -323,7 +333,7 @@ declare function supplied($node as element(tei:supplied), $options as map(*)) {
 declare function title($node as element(tei:title), $options as map(*)) {
   switch ($node)
   case ($node[@type='publication']) return <em class="title"><a href='/ampere/publications/{$node/fn:substring-after(@ref, 'publi_')}'>{ passthru($node, $options) }</a></em>
-  case ($node[@type='ouvrages_mentionnes']) return <em class="title"><a href='/ampere/publications-citées/{$node/@ref}'>{ passthru($node, $options) }</a></em>
+  case ($node[@type='ouvrages_mentionnes']) return <em class="title"><a href='/ampere/publications-citées{$node/@ref}'>{ passthru($node, $options) }</a></em>
   default return <em class="title">{ passthru($node, $options) }</em>
 };
 
