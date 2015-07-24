@@ -94,7 +94,6 @@ declare function dispatch($node as node()*, $options as map(*)) as item()* {
     case element(tei:figure) return figure($node, $options)
     case element(tei:formula) return formula($node, $options)
     case element(tei:graphic) return graphic($node, $options)
-    (: case element(tei:text) return synopsx.mappings.tei2html:text($node, $options) :)
     case element(tei:front) return front($node, $options)
     case element(tei:body) return passthru($node, $options)
     case element(tei:back) return passthru($node, $options)
@@ -126,24 +125,6 @@ declare function teiHeader($node as element(tei:teiHeader)+, $options as map(*))
   case ($node[ancestor::tei:TEI/tei:text[@type='archives']]) return archivesList($node//tei:sourceDesc/tei:msDesc, $options)
   default return ()
 };
-
-(: declare function synopsx.mappings.tei2html:text($node as element(tei:text)+, $options as map(*)) {
-  switch ($node)
-  case ($node[@type='archives']) return 
-    for $x in db:open('ampere', 'archives')/tei:TEI/tei:text[fn:ends-with(@decls, 'chem1')]
-    return 
-      for $text in $node/tei:group/tei:text
-      return
-        <table>{
-          for $num in $text//tei:pb[fn:data(@n)]
-          return 
-            <tr>
-              <td>{$num/fn:data(@n)}</td>
-              <td>{passthru($num//following-sibling::tei:*, $options)}</td>
-            </tr>
-        }</table>
-  default return passthru($node, $options)
-}; :)
 
 declare function div($node as element(tei:div)+, $options as map(*)) {
   <div>
@@ -341,7 +322,7 @@ declare function supplied($node as element(tei:supplied), $options as map(*)) {
 
 declare function title($node as element(tei:title), $options as map(*)) {
   switch ($node)
-  case ($node[@type='publication']) return <em class="title"><a href='/ampere/publications/{$node/@ref}'>{ passthru($node, $options) }</a></em>
+  case ($node[@type='publication']) return <em class="title"><a href='/ampere/publications/{$node/fn:substring-after(@ref, 'publi_')}'>{ passthru($node, $options) }</a></em>
   case ($node[@type='ouvrages_mentionnes']) return <em class="title"><a href='/ampere/publications-citées/{$node/@ref}'>{ passthru($node, $options) }</a></em>
   default return <em class="title">{ passthru($node, $options) }</em>
 };
