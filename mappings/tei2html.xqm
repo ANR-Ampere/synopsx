@@ -90,12 +90,14 @@ declare function dispatch($node as node()*, $options as map(*)) as item()* {
     case element(tei:witness) return witness($node, $options)
     case element(tei:listWit) return listWit($node, $options)
     case element(tei:msDesc) return msDesc($node, $options)
+    case element(tei:msItem) return passthru($node, $options)
     case element(tei:figure) return figure($node, $options)
     case element(tei:formula) return formula($node, $options)
     case element(tei:graphic) return graphic($node, $options)
+    (: case element(tei:text) return synopsx.mappings.tei2html:text($node, $options) :)
+    case element(tei:front) return front($node, $options)
     case element(tei:body) return passthru($node, $options)
     case element(tei:back) return passthru($node, $options)
-    case element(tei:front) return front($node, $options)
     case element(tei:teiHeader) return teiHeader($node, $options)
     case element(tei:TEI) return passthru($node, $options)
     case element(tei:said) return said($node, $options)
@@ -121,8 +123,27 @@ declare function teiHeader($node as element(tei:teiHeader)+, $options as map(*))
   (: getSourceDesc($node, $options), :)
   switch ($node)
   case ($node[ancestor::tei:TEI/tei:text[@type='correspondance']]) return correspDesc($node//tei:correspDesc, $options)
+  case ($node[ancestor::tei:TEI/tei:text[@type='archives']]) return archivesList($node//tei:sourceDesc/tei:msDesc, $options)
   default return ()
 };
+
+(: declare function synopsx.mappings.tei2html:text($node as element(tei:text)+, $options as map(*)) {
+  switch ($node)
+  case ($node[@type='archives']) return 
+    for $x in db:open('ampere', 'archives')/tei:TEI/tei:text[fn:ends-with(@decls, 'chem1')]
+    return 
+      for $text in $node/tei:group/tei:text
+      return
+        <table>{
+          for $num in $text//tei:pb[fn:data(@n)]
+          return 
+            <tr>
+              <td>{$num/fn:data(@n)}</td>
+              <td>{passthru($num//following-sibling::tei:*, $options)}</td>
+            </tr>
+        }</table>
+  default return passthru($node, $options)
+}; :)
 
 declare function div($node as element(tei:div)+, $options as map(*)) {
   <div>
@@ -132,7 +153,7 @@ declare function div($node as element(tei:div)+, $options as map(*)) {
 };
 
 declare function front($node as element(tei:front)+, $options as map(*)) {
-    <div>{
+    <div class="front">{
         passthru($node, $options)
     }</div>
 };
@@ -156,7 +177,7 @@ declare function head($node as element(tei:head)+, $options as map(*)) as elemen
 
 declare function p($node as element(tei:p)+, $options as map(*)) {
   switch ($node)
-  case ($node[1][ancestor::tei:note]) return <p class='inline'>{ passthru($node, $options) }</p>
+  case ($node[ancestor::tei:note]) return <p class='inline'>{ passthru($node, $options) }</p>
   case ($node[ancestor::tei:text[@type='publications' or @type='archives' or @type='correspondance']]) return 
     <p class="pundit-content" about="{fn:concat('http:ampere.dev.huma-num.fr/ampere/', getCorpus($node, $options), '/', getId($node, $options), '/')}">{ passthru($node, $options) }</p>
   default return passthru($node, $options) 
@@ -504,6 +525,7 @@ declare function getImprint($node, $options as map(*)) {
  : ~:~:~:~:~:~:~:~:~
  :)
 declare function listWit($node as element(tei:listWit)*, $options as map(*)) {
+  <h4>Autres sources</h4>,
   <ul>{ passthru($node, $options) }</ul>
 };
 
@@ -511,20 +533,53 @@ declare function witness($node as element(tei:witness)*, $options as map(*)) {
   <li id='{$node/tei:*/@xml:id}'>{ passthru($node, $options) }</li>
 };
 
+declare function archivesList($node as element(tei:msDesc)*, $options as map(*)) {
+  let $numChem := $node/tei:msIdentifier/fn:substring-after(@xml:id, 'chem')
+  return
+    <table class="table">
+      <tr>
+        <td class="cell"><a href="/ampere/archives/{fn:concat('chem', $numChem)}">Chemise {$numChem}</a></td>
+        <td class="cell">
+          <h4>{$node/tei:msContents/tei:summary}</h4>
+          <ul>{
+            if ($node/tei:msContents/tei:msItem) 
+            then 
+              for $msItem in $node/tei:msContents/tei:msItem
+              return <li><a href="/ampere/archives/chem{$numChem}#{$msItem/@xml:id}">Document {$msItem/fn:substring-after(@xml:id, fn:concat('chem', $numChem, '_'))}</a>: { passthru($msItem, $options) }</li>
+            else ()  
+          }</ul>
+        </td>
+      </tr>
+    </table>
+};
+
 declare function msDesc($node as element(tei:msDesc)*, $options as map(*)) {
-  for $node in $node 
-  return (
-    if ($node[tei:msIdentifier/tei:country]) then ($node/tei:msIdentifier/tei:country, ', ') else (),
-    if ($node[tei:msIdentifier/tei:settlement]) then ($node/tei:msIdentifier/tei:settlement, ', ') else (),
-    if ($node[tei:msIdentifier/tei:institution]) then ($node/tei:msIdentifier/tei:institution, ', ') else (),
-    if ($node[tei:msIdentifier/tei:repository]) then ($node/tei:msIdentifier/tei:repository, ', ') else (),
-    if ($node[tei:msIdentifier/tei:idno]) then 
-      (if ($node[tei:msIdentifier/tei:idno[fn:contains(., 'chemise')]]) 
-      then (<a href='http://ampere.dev.huma-num.fr/ampere/archives/chem{fn:substring-after($node/tei:msIdentifier/tei:idno, 'chemise ')}'>{ $node/tei:msIdentifier/tei:idno }</a>, '.')
-      else ($node/tei:msIdentifier/tei:idno)  
+    switch  ($node)
+    case ($node[parent::tei:sourceDesc]) return
+      (<h4>Source de l&#39;édition numérique</h4>,
+      <p>{
+        if ($node[tei:msIdentifier/tei:country]) then ($node/tei:msIdentifier/tei:country, ', ') else (),
+        if ($node[tei:msIdentifier/tei:settlement]) then ($node/tei:msIdentifier/tei:settlement, ', ') else (),
+        if ($node[tei:msIdentifier/tei:institution]) then ($node/tei:msIdentifier/tei:institution, ', ') else (),
+        if ($node[tei:msIdentifier/tei:repository]) then ($node/tei:msIdentifier/tei:repository, ', ') else (),
+        if ($node[tei:msIdentifier/tei:idno]) then 
+          (if ($node[tei:msIdentifier/tei:idno[fn:contains(., 'chemise')]]) 
+          then (<a href='http://ampere.dev.huma-num.fr/ampere/archives/chem{fn:substring-after($node/tei:msIdentifier/tei:idno, 'chemise ')}'>{ $node/tei:msIdentifier/tei:idno }</a>)
+          else ($node/tei:msIdentifier/tei:idno)  
   )
-    else ('.')
+        else ('.')}</p>)
+     case ($node[ancestor::tei:listWit]) return  
+       (if ($node[tei:msIdentifier/tei:country]) then ($node/tei:msIdentifier/tei:country, ', ') else (),
+       if ($node[tei:msIdentifier/tei:settlement]) then ($node/tei:msIdentifier/tei:settlement, ', ') else (),
+       if ($node[tei:msIdentifier/tei:institution]) then ($node/tei:msIdentifier/tei:institution, ', ') else (),
+       if ($node[tei:msIdentifier/tei:repository]) then ($node/tei:msIdentifier/tei:repository, ', ') else (),
+       if ($node[tei:msIdentifier/tei:idno]) then 
+         (if ($node[tei:msIdentifier/tei:idno[fn:contains(., 'chemise')]]) 
+         then (<a href='http://ampere.dev.huma-num.fr/ampere/archives/chem{fn:substring-after($node/tei:msIdentifier/tei:idno, 'chemise ')}'>{ $node/tei:msIdentifier/tei:idno }</a>, '.')
+         else ($node/tei:msIdentifier/tei:idno)  
   )
+       else ('.'))
+     default return ''
 };
 
 (:~
@@ -535,9 +590,9 @@ declare function msDesc($node as element(tei:msDesc)*, $options as map(*)) {
  
 declare function getCorpus($node as element()*, $options) {
   switch ($node)
-  case ($node[ancestor::tei:text/@type[fn:contains(., 'corr')]]) return $node/ancestor::tei:text/@type
-  case ($node[ancestor::tei:text/@type[fn:contains(., 'arch')]]) return $node/ancestor::tei:text/@type
-  case ($node[ancestor::tei:text/@type[fn:contains(., 'publi')]]) return $node/ancestor::tei:text/@type
+  case ($node[ancestor::tei:TEI/tei:text/@type[fn:contains(., 'corr')]]) return $node/ancestor::tei:TEI/tei:text/@type
+  case ($node[ancestor::tei:TEI/tei:text[fn:contains(@type, 'archives')]]) return 'archives'
+  case ($node[ancestor::tei:TEI/tei:text/@type[fn:contains(., 'publi')]]) return $node/ancestor::tei:TEI/tei:text/@type
   default return ()
 };
 
@@ -549,9 +604,9 @@ declare function graphic($node as element(tei:graphic), $options as map(*)) {
 
 declare function ref($node as element(tei:ref), $options as map(*)) {
   switch ($node)
-  case ($node[@type='archives']) return <a href='/ampere/archives/{$node/fn:substring-after(@target, 'chem_')}'>{ passthru($node, $options) }</a>
-  case ($node[@type='correspondance']) return <a href='/ampere/correspondance/{$node/fn:substring-after(@target, 'corr_')}'>{ passthru($node, $options) }</a>
-  case ($node[@type='publication']) return <a href='/ampere/publications/{$node/fn:substring-after(@target, 'publi_')}'>{ passthru($node, $options) }</a>
+  case ($node[fn:contains(@target, 'chem')]) return <a href='/ampere/archives/{$node/fn:substring-after(@target, 'chem_')}'>{ passthru($node, $options) }</a>
+  case ($node[fn:contains(@target, 'corr')]) return <a href='/ampere/correspondance/{$node/fn:substring-after(@target, 'corr_')}'>{ passthru($node, $options) }</a>
+  case ($node[fn:contains(@target, 'publi')]) return <a href='/ampere/publications/{$node/fn:substring-after(@target, 'publi_')}'>{ passthru($node, $options) }</a>
   default return (<sup><a id='{'ref' || $node/fn:substring-after(@target, '#')}' href='{$node/@target}'>{ passthru($node, $options) }</a></sup>)
 };
 
@@ -586,8 +641,8 @@ declare function getIdItem($node as element()*, $options) {
 
 declare function getId($node as element()*, $options) {
   switch ($node)
-  case ($node[ancestor::tei:TEI/tei:teiHeader//tei:*/(@xml:id[fn:contains(., 'publi')][1])]) return $node/ancestor::tei:TEI/tei:teiHeader//tei:sourceDesc//(tei:*[@xml:id])[1]/fn:data(fn:substring-after(@xml:id, 'publi_'))
-  case ($node[ancestor::tei:TEI/tei:teiHeader//tei:*/(@xml:id[fn:contains(., 'arch')][1])]) return $node/ancestor::tei:TEI/tei:teiHeader//tei:sourceDesc//(tei:*[@xml:id])[1]/fn:data(fn:substring-after(@xml:id, 'arch_'))
+  case ($node[ancestor::tei:TEI/tei:teiHeader//tei:sourceDesc/tei:*/(@xml:id[fn:contains(., 'publi')])[1]]) return $node/ancestor::tei:TEI/tei:teiHeader//tei:sourceDesc/(tei:*[@xml:id])[1]/fn:data(fn:substring-after(@xml:id, 'publi_'))
+  case ($node[(ancestor::tei:TEI/tei:teiHeader//tei:sourceDesc/tei:msDesc/tei:msIdentifier/@xml:id[fn:contains(., 'arch')][1])]) return (($node/ancestor::tei:TEI/tei:teiHeader//tei:sourceDesc/tei:msDesc/tei:msIdentifier[@xml:id])/fn:data(fn:substring-after(@xml:id, 'arch_'))[1])
   case ($node[ancestor::tei:TEI/tei:teiHeader//tei:sourceDesc//tei:*/(@xml:id[fn:contains(., 'corr')][1])]) return ($node/ancestor::tei:TEI/tei:teiHeader//tei:sourceDesc//tei:*[@xml:id])[1]/fn:data(fn:substring-after(@xml:id, 'corr_'))
   default return ()
 };
@@ -612,10 +667,16 @@ declare function biblItem($node as element(tei:biblStruct)*, $options) {
         { passthru($node, $options) }
         {getOtherEdition($node, $options)}
       </li>
+    case ($node[parent::tei:sourceDesc and $node[fn:contains(@xml:id, 'corr')]]) return 
+      (<h4>Source de l&#39;édition numérique</h4>,
+      <p>{
+        passthru($node, $options),
+        getIdItem($node, $options),
+        getOtherEdition($node, $options)}</p>)
     default return  
          (passthru($node, $options),
          getIdItem($node, $options),
-          getOtherEdition($node, $options) )
+         getOtherEdition($node, $options) )
 };
  
 declare function idno($node as element(tei:idno), $options) {
